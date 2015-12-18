@@ -1,0 +1,23 @@
+{
+  "name": "storm-player",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "node --harmony app.js"
+  },
+  "engines" : {
+    "node" : ">=4.2.1"
+  },
+  "dependencies": {
+    "nodetunes": "git://github.com/jim-lake/nodetunes",
+    "async": "*",
+    "lodash": "*",
+    "moment-timezone": "*",
+    "semver": "*",
+    "events": "*",
+    "speaker": "*",
+    "alac2pcm": "*",
+    "request": "*",
+    "mdns": "*"
+  }
+}
