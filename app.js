@@ -368,7 +368,6 @@ function playbackStart(args) {
       avgBitRate: parseInt(audioOptions[10], 10),
       sampleRate: parseInt(audioOptions[11], 10)
     };
-    console.log("playbackStart: decoderOptions:",decoderOptions);
 
     g_decoder = new AlacDecoderStream(decoderOptions);
   }
@@ -409,7 +408,7 @@ function onAudio(data) {
       buf = g_decoder.read();
     }
   } else {
-    console.log("onAudio: unsupported codec:",g_codec);
+    console.error("onAudio: unsupported codec:",g_codec);
   }
 
   if (g_preBufferList && g_preBufferLength > PREBUFFER_LENGTH) {
