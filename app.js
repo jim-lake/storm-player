@@ -35,8 +35,10 @@ let g_preBufferLength = 0;
 let g_slaveList = [];
 let g_audioSlaveList = [];
 
-const g_sendSocket = new dgram.createSocket('udp6');
-g_sendSocket.unref();
+const g_sendSocket4 = new dgram.createSocket('udp4');
+const g_sendSocket6 = new dgram.createSocket('udp4');
+g_sendSocket4.unref();
+g_sendSocket6.unref();
 
 const browser_opts = {
   resolverSequence: [
@@ -142,12 +144,15 @@ function masterPlaybackStart(args) {
       console.error("masterPlaybackStart: request err:",err);
     } else {
       _.each(results,(result) => {
-        const audio_slave = {
-          host: result.slave.host,
-          port: result.body.audio_port,
-        };
-        g_audioSlaveList.push(audio_slave);
-        console.log("masterPlaybackStart: added audio slave:",audio_slave);
+        if (result.body && result.body.audio_port) {
+          const audio_slave = _.extend({},result.slave,{
+            port: result.body.audio_port,
+          });
+          g_audioSlaveList.push(audio_slave);
+          console.log("masterPlaybackStart: added audio slave:",audio_slave);
+        } else {
+          console.error("masterPlaybackStart: bad client result:",result);
+        }
       });
     }
   });
@@ -160,7 +165,7 @@ function requestAll(opts,done) {
   const results = [];
   async.each(g_slaveList,(slave,done) => {
     const request_opts = _.extend({},opts,{
-      url: "http://" + slave.host + ":" + slave.port,
+      url: "http://" + slave.ip + ":" + slave.port,
     });
     request(request_opts,(err,response,body) => {
       if (!err) {
@@ -179,15 +184,21 @@ function requestAll(opts,done) {
 function masterAudio(data) {
   _.each(g_audioSlaveList,(slave,index) => {
     const buf = data.message;
-    g_sendSocket.send(buf,0,buf.length,slave.port,slave.host,(err) => {
-      if (err) {
-        console.error("masterAudio: send err:",err);
-      }
-    });
+    try {
+      const socket = slave.ipv6 ? g_sendSocket6 : g_sendSocket4;
+      socket.send(buf,0,buf.length,slave.port,slave.ip,(err) => {
+        if (err) {
+          console.error("masterAudio: send err:",err);
+        }
+      });
+    } catch(e) {
+      console.error("masterAudio: exception:",e);
+    }
   });
 }
 
 function slaveRegister(info) {
+  console.log("slaveRegister: url",g_masterServerUrl);
   const opts = {
     url: g_masterServerUrl,
     method: 'STORM_REGISTER',
@@ -226,6 +237,7 @@ function rtspStorm(req,res) {
 
 function rtspStormStart(req,res) {
   if (g_isMaster) {
+    console.error("rtspStormStart:",req.ip,"tried to start master.");
     res.status(400).send("Im master so you cant start me.");
   } else {
     console.log("rtspStormStart:",req.body);
@@ -252,8 +264,10 @@ function rtspStormRegister(req,res) {
     if (!port) {
       res.status(400).send("port is required");
     } else {
+      console.log(req.socket.remoteAddress,req.socket.remoteFamily);
       const client = {
-        host: req.ip,
+        ip: req.ip,
+        ipv6: req.ipv6,
         port,
       };
       if (!_.find(g_slaveList,_.isEqual.bind(null,client))) {
